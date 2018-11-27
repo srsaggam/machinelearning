@@ -2,12 +2,14 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using Microsoft.ML.Runtime.Internal.CpuMath.Core;
 using System;
 using System.Runtime.CompilerServices;
 
 namespace Microsoft.ML.Runtime.Internal.CpuMath
 {
-    public static partial class CpuMathUtils
+    [BestFriend]
+    internal static partial class CpuMathUtils
     {
         // The count of bytes in Vector128<T>, corresponding to _cbAlign in AlignedArray
         private const int Vector128Alignment = 16;
@@ -18,7 +20,7 @@ namespace Microsoft.ML.Runtime.Internal.CpuMath
 
         public static void MatrixTimesSource(bool transpose, AlignedArray matrix, AlignedArray source, AlignedArray destination, int stride) => SseUtils.MatTimesSrc(transpose, matrix, source, destination, stride);
 
-        public static void MatrixTimesSource(AlignedArray matrix, int[] rgposSrc, AlignedArray sourceValues,
+        public static void MatrixTimesSource(AlignedArray matrix, ReadOnlySpan<int> rgposSrc, AlignedArray sourceValues,
             int posMin, int iposMin, int iposLimit, AlignedArray destination, int stride) => SseUtils.MatTimesSrc(matrix, rgposSrc, sourceValues, posMin, iposMin, iposLimit, destination, stride);
 
         public static void Add(float value, Span<float> destination) => SseUtils.Add(value, destination);

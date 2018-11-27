@@ -2,9 +2,12 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using Microsoft.ML.Runtime.Internal.CpuMath.Core;
+
 namespace Microsoft.ML.Runtime.Internal.CpuMath
 {
-    public static class CpuAligenedMathUtils<TMatrix>
+    [BestFriend]
+    internal static class CpuAligenedMathUtils<TMatrix>
         where TMatrix : CpuAlignedMatrixBase, ICpuFullMatrix
     {
         /// <summary>

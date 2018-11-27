@@ -9,6 +9,7 @@ using Microsoft.ML.Trainers;
 using Microsoft.ML.Trainers.KMeans;
 using Microsoft.ML.Trainers.PCA;
 using Microsoft.ML.Transforms.Categorical;
+using Microsoft.ML.Transforms.Conversions;
 using Microsoft.ML.Transforms.Text;
 using Xunit;
 using Xunit.Abstractions;
@@ -71,7 +72,7 @@ namespace Microsoft.ML.Tests.TrainerEstimators
 
 
             // Pipeline.
-            var pipeline = new KMeansPlusPlusTrainer(Env, featureColumn, weightColumn: weights,
+            var pipeline = new KMeansPlusPlusTrainer(Env, featureColumn, weights: weights,
                             advancedSettings: s => { s.InitAlgorithm = KMeansPlusPlusTrainer.InitAlgorithm.KMeansParallel; });
 
             TestEstimatorCore(pipeline, data);
@@ -86,7 +87,13 @@ namespace Microsoft.ML.Tests.TrainerEstimators
         public void TestEstimatorHogwildSGD()
         {
             (IEstimator<ITransformer> pipe, IDataView dataView) = GetBinaryClassificationPipeline();
-            pipe = pipe.Append(new StochasticGradientDescentClassificationTrainer(Env, "Features", "Label"));
+            var trainer = new StochasticGradientDescentClassificationTrainer(Env, "Label", "Features");
+            var pipeWithTrainer = pipe.Append(trainer);
+            TestEstimatorCore(pipeWithTrainer, dataView);
+
+            var transformedDataView = pipe.Fit(dataView).Transform(dataView);
+            var model = trainer.Fit(transformedDataView);
+            trainer.Train(transformedDataView, model.Model);
             TestEstimatorCore(pipe, dataView);
             Done();
         }
@@ -98,7 +105,7 @@ namespace Microsoft.ML.Tests.TrainerEstimators
         public void TestEstimatorMultiClassNaiveBayesTrainer()
         {
             (IEstimator<ITransformer> pipe, IDataView dataView) = GetMultiClassPipeline();
-            pipe = pipe.Append(new MultiClassNaiveBayesTrainer(Env, "Features", "Label"));
+            pipe = pipe.Append(new MultiClassNaiveBayesTrainer(Env, "Label", "Features"));
             TestEstimatorCore(pipe, dataView);
             Done();
         }
@@ -140,8 +147,8 @@ namespace Microsoft.ML.Tests.TrainerEstimators
 
             // Pipeline.
             var pipeline = new ValueToKeyMappingEstimator(Env, new[]{
-                                    new TermTransform.ColumnInfo("Workclass", "Group"),
-                                    new TermTransform.ColumnInfo("Label", "Label0") });
+                                    new ValueToKeyMappingTransformer.ColumnInfo("Workclass", "Group"),
+                                    new ValueToKeyMappingTransformer.ColumnInfo("Label", "Label0") });
 
             return (pipeline, data);
         }

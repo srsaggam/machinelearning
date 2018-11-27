@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using Microsoft.ML.Runtime.Internal.CpuMath.Core;
 using System;
 using System.Runtime.InteropServices;
 
@@ -11,7 +12,8 @@ namespace Microsoft.ML.Runtime.Internal.CpuMath
     /// Keep Sse.cs in sync with Avx.cs. When making changes to one, use BeyondCompare or a similar tool
     /// to view diffs and propagate appropriate changes to the other.
     /// </summary>
-    public static class SseUtils
+    [BestFriend]
+    internal static class SseUtils
     {
         public const int CbAlign = 16;
 
@@ -57,13 +59,12 @@ namespace Microsoft.ML.Runtime.Internal.CpuMath
             }
         }
 
-        public static void MatTimesSrc(AlignedArray mat, int[] rgposSrc, AlignedArray srcValues,
+        public static void MatTimesSrc(AlignedArray mat, ReadOnlySpan<int> rgposSrc, AlignedArray srcValues,
             int posMin, int iposMin, int iposLim, AlignedArray dst, int crun)
         {
             Contracts.Assert(Compat(mat));
             Contracts.Assert(Compat(srcValues));
             Contracts.Assert(Compat(dst));
-            Contracts.AssertValue(rgposSrc);
             Contracts.Assert(0 <= iposMin && iposMin <= iposLim && iposLim <= rgposSrc.Length);
             Contracts.Assert(mat.Size == dst.Size * srcValues.Size);
 

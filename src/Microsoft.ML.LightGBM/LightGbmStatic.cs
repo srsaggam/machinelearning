@@ -8,6 +8,7 @@ using Microsoft.ML.Runtime.Internal.Internallearn;
 using Microsoft.ML.Runtime.Learners;
 using Microsoft.ML.Runtime.LightGBM;
 using Microsoft.ML.StaticPipe.Runtime;
+using Microsoft.ML.Trainers;
 using System;
 
 namespace Microsoft.ML.StaticPipe
@@ -38,7 +39,7 @@ namespace Microsoft.ML.StaticPipe
         /// <example>
         /// <format type="text/markdown">
         /// <![CDATA[
-        ///  [!code-csharp[LightGBM](~/../docs/samples/docs/samples/Microsoft.ML.Samples/Static/LightGBMRegression.cs?range=6-10,18-74)]
+        ///  [!code-csharp[LightGBM](~/../docs/samples/docs/samples/Microsoft.ML.Samples/Static/LightGBMRegression.cs)]
         /// ]]></format>
         /// </example>
         public static Scalar<float> LightGbm(this RegressionContext.RegressionTrainers ctx,
@@ -87,7 +88,7 @@ namespace Microsoft.ML.StaticPipe
         /// <example>
         /// <format type="text/markdown">
         /// <![CDATA[
-        ///  [!code-csharp[LightGBM](~/../docs/samples/docs/samples/Microsoft.ML.Samples/Static/LightGBMBinaryClassification.cs?range=6-11,19-114 "The LightGBM binary classification example.")]
+        ///  [!code-csharp[LightGBM](~/../docs/samples/docs/samples/Microsoft.ML.Samples/Static/LightGBMBinaryClassification.cs)]
         /// ]]></format>
         /// </example>
         public static (Scalar<float> score, Scalar<float> probability, Scalar<bool> predictedLabel) LightGbm(this BinaryClassificationContext.BinaryClassificationTrainers ctx,

@@ -10,6 +10,7 @@ using Microsoft.ML.Runtime.Internal.Utilities;
 using Microsoft.ML.Runtime.Learners;
 using Microsoft.ML.Runtime.Model;
 using Microsoft.ML.Runtime.Training;
+using Microsoft.ML.Trainers;
 using System;
 using System.Linq;
 
@@ -32,7 +33,7 @@ using System.Linq;
 [assembly: LoadableClass(typeof(PriorPredictor), null, typeof(SignatureLoadModel),
     "Prior predictor", PriorPredictor.LoaderSignature)]
 
-namespace Microsoft.ML.Runtime.Learners
+namespace Microsoft.ML.Trainers
 {
     /// <summary>
     /// A trainer that trains a predictor that returns random values
@@ -75,7 +76,7 @@ namespace Microsoft.ML.Runtime.Learners
             return new BinaryPredictionTransformer<RandomPredictor>(Host, pred, input.Schema, featureColumn: null);
         }
 
-        public override RandomPredictor Train(TrainContext context)
+        private protected override RandomPredictor Train(TrainContext context)
         {
             Host.CheckValue(context, nameof(context));
             return new RandomPredictor(Host, Host.Rand.Next());
@@ -273,7 +274,7 @@ namespace Microsoft.ML.Runtime.Learners
             return new BinaryPredictionTransformer<PriorPredictor>(Host, pred, input.Schema, featureColumn: null);
         }
 
-        public override PriorPredictor Train(TrainContext context)
+        private protected override PriorPredictor Train(TrainContext context)
         {
             Contracts.CheckValue(context, nameof(context));
             var data = context.TrainingSet;

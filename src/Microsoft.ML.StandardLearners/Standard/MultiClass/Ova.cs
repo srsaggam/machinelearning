@@ -20,6 +20,7 @@ using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 
 using System.Collections.Generic;
+using Microsoft.ML.Trainers;
 
 [assembly: LoadableClass(Ova.Summary, typeof(Ova), typeof(Ova.Arguments),
     new[] { typeof(SignatureMultiClassClassifierTrainer), typeof(SignatureTrainer) },
@@ -31,7 +32,7 @@ using System.Collections.Generic;
     OvaPredictor.LoaderSignature)]
 
 [assembly: EntryPointModule(typeof(OvaPredictor))]
-namespace Microsoft.ML.Runtime.Learners
+namespace Microsoft.ML.Trainers
 {
     using TScalarPredictor = IPredictorProducing<float>;
     using TScalarTrainer = ITrainerEstimator<ISingleFeaturePredictionTransformer<IPredictorProducing<float>>, IPredictorProducing<float>>;
@@ -66,7 +67,7 @@ namespace Microsoft.ML.Runtime.Learners
         /// </summary>
         /// <param name="env">The private <see cref="IHostEnvironment"/> for this estimator.</param>
         /// <param name="args">The legacy <see cref="Arguments"/></param>
-        public Ova(IHostEnvironment env, Arguments args)
+        internal Ova(IHostEnvironment env, Arguments args)
             : base(env, args, LoadNameValue)
         {
             _args = args;
@@ -82,9 +83,13 @@ namespace Microsoft.ML.Runtime.Learners
         /// <param name="imputeMissingLabelsAsNegative">Whether to treat missing labels as having negative labels, instead of keeping them missing.</param>
         /// <param name="maxCalibrationExamples">Number of instances to train the calibrator.</param>
         /// <param name="useProbabilities">Use probabilities (vs. raw outputs) to identify top-score category.</param>
-        public Ova(IHostEnvironment env, TScalarTrainer binaryEstimator, string labelColumn = DefaultColumnNames.Label,
-            bool imputeMissingLabelsAsNegative = false, ICalibratorTrainer calibrator = null,
-            int maxCalibrationExamples = 1000000000, bool useProbabilities = true)
+        public Ova(IHostEnvironment env,
+            TScalarTrainer binaryEstimator,
+            string labelColumn = DefaultColumnNames.Label,
+            bool imputeMissingLabelsAsNegative = false,
+            ICalibratorTrainer calibrator = null,
+            int maxCalibrationExamples = 1000000000,
+            bool useProbabilities = true)
          : base(env,
                new Arguments
                {
@@ -105,7 +110,7 @@ namespace Microsoft.ML.Runtime.Learners
             for (int i = 0; i < predictors.Length; i++)
             {
                 ch.Info($"Training learner {i}");
-                predictors[i] = TrainOne(ch, GetTrainer(), data, i).Model;
+                predictors[i] = TrainOne(ch, Trainer, data, i).Model;
             }
             return OvaPredictor.Create(Host, _args.UseProbabilities, predictors);
         }
@@ -129,7 +134,7 @@ namespace Microsoft.ML.Runtime.Learners
                 var trainedData = new RoleMappedData(view, label: trainerLabel, feature: transformer.FeatureColumn);
 
                 if (calibratedModel == null)
-                   calibratedModel = CalibratorUtils.TrainCalibrator(Host, ch, Calibrator, Args.MaxCalibrationExamples, transformer.Model, trainedData) as TDistPredictor;
+                    calibratedModel = CalibratorUtils.TrainCalibrator(Host, ch, Calibrator, Args.MaxCalibrationExamples, transformer.Model, trainedData) as TDistPredictor;
 
                 Host.Check(calibratedModel != null, "Calibrated predictor does not implement the expected interface");
                 return new BinaryPredictionTransformer<TScalarPredictor>(Host, calibratedModel, trainedData.Data.Schema, transformer.FeatureColumn);
@@ -183,11 +188,11 @@ namespace Microsoft.ML.Runtime.Learners
 
                     if (i == 0)
                     {
-                        var transformer = TrainOne(ch, GetTrainer(), td, i);
+                        var transformer = TrainOne(ch, Trainer, td, i);
                         featureColumn = transformer.FeatureColumn;
                     }
 
-                    predictors[i] = TrainOne(ch, GetTrainer(), td, i).Model;
+                    predictors[i] = TrainOne(ch, Trainer, td, i).Model;
                 }
             }
 
@@ -225,7 +230,7 @@ namespace Microsoft.ML.Runtime.Learners
         public ColumnType InputType => _impl.InputType;
         public ColumnType OutputType { get; }
         public ColumnType DistType => OutputType;
-        public bool CanSavePfa => _impl.CanSavePfa;
+        bool ICanSavePfa.CanSavePfa => _impl.CanSavePfa;
 
         [BestFriend]
         internal static OvaPredictor Create(IHost host, bool useProb, TScalarPredictor[] predictors)
@@ -337,7 +342,7 @@ namespace Microsoft.ML.Runtime.Learners
                 ctx.SaveModel(preds[i], string.Format(SubPredictorFmt, i));
         }
 
-        public JToken SaveAsPfa(BoundPfaContext ctx, JToken input)
+        JToken ISingleCanSavePfa.SaveAsPfa(BoundPfaContext ctx, JToken input)
         {
             Host.CheckValue(ctx, nameof(ctx));
             Host.CheckValue(input, nameof(input));
@@ -453,19 +458,19 @@ namespace Microsoft.ML.Runtime.Learners
                 for (int i = 0; i < Predictors.Length; i++)
                     maps[i] = Predictors[i].GetMapper<VBuffer<float>, float>();
 
+                var buffer = new float[maps.Length];
                 return
                     (in VBuffer<float> src, ref VBuffer<float> dst) =>
                     {
                         if (InputType.VectorSize > 0)
                             Contracts.Check(src.Length == InputType.VectorSize);
 
-                        var values = dst.Values;
-                        if (Utils.Size(values) < maps.Length)
-                            values = new float[maps.Length];
-
                         var tmp = src;
-                        Parallel.For(0, maps.Length, i => maps[i](in tmp, ref values[i]));
-                        dst = new VBuffer<float>(maps.Length, values, dst.Indices);
+                        Parallel.For(0, maps.Length, i => maps[i](in tmp, ref buffer[i]));
+
+                        var editor = VBufferEditor.Create(ref dst, maps.Length);
+                        buffer.CopyTo(editor.Values);
+                        dst = editor.Commit();
                     };
             }
 
@@ -522,25 +527,25 @@ namespace Microsoft.ML.Runtime.Learners
                 for (int i = 0; i < Predictors.Length; i++)
                     maps[i] = _mappers[i].GetMapper<VBuffer<float>, float, float>();
 
+                var buffer = new float[maps.Length];
                 return
                     (in VBuffer<float> src, ref VBuffer<float> dst) =>
                     {
                         if (InputType.VectorSize > 0)
                             Contracts.Check(src.Length == InputType.VectorSize);
 
-                        var values = dst.Values;
-                        if (Utils.Size(values) < maps.Length)
-                            values = new float[maps.Length];
-
                         var tmp = src;
                         Parallel.For(0, maps.Length,
                             i =>
                             {
                                 float score = 0;
-                                maps[i](in tmp, ref score, ref values[i]);
+                                maps[i](in tmp, ref score, ref buffer[i]);
                             });
-                        Normalize(values, maps.Length);
-                        dst = new VBuffer<float>(maps.Length, values, dst.Indices);
+                        Normalize(buffer, maps.Length);
+
+                        var editor = VBufferEditor.Create(ref dst, maps.Length);
+                        buffer.CopyTo(editor.Values);
+                        dst = editor.Commit();
                     };
             }
 

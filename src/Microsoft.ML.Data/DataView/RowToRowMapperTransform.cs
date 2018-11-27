@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using Microsoft.ML.Data;
 using Microsoft.ML.Runtime;
 using Microsoft.ML.Runtime.Data;
 using Microsoft.ML.Runtime.Internal.Utilities;
@@ -42,7 +43,7 @@ namespace Microsoft.ML.Runtime.Data
         /// <summary>
         /// Returns information about the output columns, including their name, type and any metadata information.
         /// </summary>
-        Schema.Column[] GetOutputColumns();
+        Schema.DetachedColumn[] GetOutputColumns();
     }
 
     public delegate void SignatureLoadRowMapper(ModelLoadContext ctx, ISchema schema);
@@ -76,9 +77,9 @@ namespace Microsoft.ML.Runtime.Data
 
         public override Schema Schema => _bindings.Schema;
 
-        public bool CanSaveOnnx(OnnxContext ctx) => _mapper is ICanSaveOnnx onnxMapper ? onnxMapper.CanSaveOnnx(ctx) : false;
+        bool ICanSaveOnnx.CanSaveOnnx(OnnxContext ctx) => _mapper is ICanSaveOnnx onnxMapper ? onnxMapper.CanSaveOnnx(ctx) : false;
 
-        public bool CanSavePfa => _mapper is ICanSavePfa pfaMapper ? pfaMapper.CanSavePfa : false;
+        bool ICanSavePfa.CanSavePfa => _mapper is ICanSavePfa pfaMapper ? pfaMapper.CanSavePfa : false;
 
         public RowToRowMapperTransform(IHostEnvironment env, IDataView input, IRowMapper mapper, Func<Schema, IRowMapper> mapperFactory)
             : base(env, RegistrationName, input)
@@ -205,7 +206,7 @@ namespace Microsoft.ML.Runtime.Data
             return cursors;
         }
 
-        public void SaveAsOnnx(OnnxContext ctx)
+        void ISaveAsOnnx.SaveAsOnnx(OnnxContext ctx)
         {
             Host.CheckValue(ctx, nameof(ctx));
             if (_mapper is ISaveAsOnnx onnx)
@@ -215,7 +216,7 @@ namespace Microsoft.ML.Runtime.Data
             }
         }
 
-        public void SaveAsPfa(BoundPfaContext ctx)
+        void ISaveAsPfa.SaveAsPfa(BoundPfaContext ctx)
         {
             Host.CheckValue(ctx, nameof(ctx));
             if (_mapper is ISaveAsPfa pfa)
